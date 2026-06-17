@@ -1,0 +1,74 @@
+# Function that returns all weights, k in a given dimension d
+def ks_for_dim(d):
+    ks = []
+    for k in range(12*d, 12*(d+1), 2):
+        ks.append(k)
+    ks.remove(12*d +2)  # k = 2(mod 12)
+    ks.append(12*(d+1) + 2)
+    return ks
+
+# Function that returns dimension of a weight, k, along with variables a & b such that 4a+6b=kmod12
+def dim(k):
+    if k%12 == 2:
+        d = floor(k/12) - 1
+    else:
+        d = floor(k/12)
+    m = k/2
+    b = m%2
+    a = ((m-3*b)/2)%3
+    return d,a,b
+
+# Function to compute the canonical basis for S_k 
+def vm_basis(k, prec, d, a, b):
+   
+    E4 = ModularForms(1, 4).0.q_expansion(prec+1)  # Compute up to q^(prec)
+    E6 = ModularForms(1, 6).0.q_expansion(prec+1)  # Compute up to q^(prec)
+    Delta = CuspForms(1, 12).0.q_expansion(prec+1)  # The modular discriminant Δ
+
+    vm = []
+    for j in range(1, d+1):
+        vm.append((Delta^j)*(E6^(2*d-2*j+b))*(E4^a)) #Victor Miller basis construction
+    return vm
+
+# Function to convert the basis to a matrix A where a(i,j) = coefficient of q^j in the expansion of i^th element of the basis
+def a_mat(k, prec):
+    d, a, b = dim(k)
+    vm = vm_basis(k, prec, d, a, b)
+    
+    A = matrix(QQ, d, prec)
+    for i in range(1,d+1):
+        for j in range(i,prec+1):
+            A[i-1, j-1] = vm[i-1][j]
+    return A
+
+# Function that computes the coordinate vectors of an eigenform w.r.t. to the canonical basis
+def coeffs(k):
+    print("k = ",k)
+    S = CuspForms(1, k)
+    d,_,_ = dim(k)
+    a = a_mat(k, prec = d)
+   
+    newforms = S.newforms(names='a')
+   
+    for f in newforms:
+        f_qexp = f.q_expansion(prec=d+1)
+        K = f.hecke_eigenvalue_field() #coeffs lie in a finite extension of the rational field(number field)
+        embeddings = K.embeddings(ComplexField())
+        for i, emb in enumerate(embeddings):
+            lambda_ = [0,1]
+            x = [1]
+            for m in range(2,d+1):
+                lambda_.append(emb(f_qexp[m]))
+                x.append(lambda_[m] - sum(x[j-1]*a[j-1, m-1] for j in range(1,m)))
+            print("x =", x)  
+
+            # Uncomment the below code if you wish to see x values only when they're all non-negative
+            '''if all(v >= 0 for v in x) and len(x)>1:               
+                print("x =", x)'''
+        print("")
+
+---------------------------------
+d = 2 # Enter your dimension here
+for k in ks_for_dim(d):
+  coeffs(k)
+---------------------------------
